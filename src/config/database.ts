@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const connectionString = process.env.DATABASE_URL;
-
+console.log(connectionString)
 if (!connectionString) {
   console.error('❌ FATAL ERROR: DATABASE_URL is missing from environment variables or .env file!');
 } else {
