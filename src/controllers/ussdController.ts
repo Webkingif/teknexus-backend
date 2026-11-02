@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { pool } from '../config/database.js';
 import { logger } from '../utils/logger.js';
-import { updateUserProgress, getUserProgress } from '../services/progressService.js';
 
 export const handleUSSD = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const { sessionId, serviceCode, phoneNumber, text } = req.body;
@@ -11,7 +10,7 @@ export const handleUSSD = async (req: Request, res: Response, next: NextFunction
   try {
     // 1. Ensure User Exists in Database (Auto-Registration via Phone Number)
     let userResult = await pool.query('SELECT * FROM users WHERE phone_number = $1', [phoneNumber]);
-    let userId: string;
+    let userId: number;
 
     if (userResult.rows.length === 0) {
       const newUserResult = await pool.query(
@@ -60,7 +59,7 @@ export const handleUSSD = async (req: Request, res: Response, next: NextFunction
           if (textArray[1] === '1') {
             // Lesson 1, Page 1
             response = `CON LESSON 1: What is bookkeeping?\n`;
-            response += `Keeping clear records of all money received and spent by a person or business.\n`;
+            response += `Keeping clear records of all money received and spent.\n`;
             response += `1. Next\n0. Back`;
           } else if (textArray[1] === '2') {
             // Lesson 2, Page 1
@@ -126,12 +125,11 @@ export const handleUSSD = async (req: Request, res: Response, next: NextFunction
       case 7:
         if (textArray[0] === '1') {
           if (textArray[1] === '1') {
-            // Evaluating Lesson 1 Answer
+            // Evaluating Lesson 1 Answer (Expected: 3500)
             const userAnswer = textArray[6].trim();
             const expectedAnswer = '3500';
 
             if (userAnswer === expectedAnswer) {
-              // Save completion to database (Lesson ID 1)
               await pool.query(
                 `INSERT INTO user_progress (user_id, lesson_id, status) 
                  VALUES ($1, 1, 'completed') 
@@ -139,19 +137,18 @@ export const handleUSSD = async (req: Request, res: Response, next: NextFunction
                 [userId]
               ).catch(err => logger.error('Failed to save progress', err));
 
-              response = `END Correct! Well done.\nN5,000 - N1,500 = N3,500.\nYou understand money in and out!`;
+              response = `END Correct! Well done.\nN5,000 - N1,500 = N3,500.\nYou understand money in and out! Progress saved.`;
             } else {
               response = `CON Not quite. Money received is added, spent is deducted.\nN5,000 - N1,500 = N3,500. Try again:`;
             }
           } else if (textArray[1] === '2') {
-            // Evaluating Lesson 2 Answer
+            // Evaluating Lesson 2 Answer (Expected: date, description, amount)
             const userAnswer = textArray[6].toLowerCase();
             const hasDate = userAnswer.includes('date');
             const hasDesc = userAnswer.includes('description') || userAnswer.includes('desc');
             const hasAmount = userAnswer.includes('amount');
 
             if (hasDate && hasDesc && hasAmount) {
-              // Save completion to database (Lesson ID 2)
               await pool.query(
                 `INSERT INTO user_progress (user_id, lesson_id, status) 
                  VALUES ($1, 2, 'completed') 
@@ -159,7 +156,7 @@ export const handleUSSD = async (req: Request, res: Response, next: NextFunction
                 [userId]
               ).catch(err => logger.error('Failed to save progress', err));
 
-              response = `END Excellent!\nYou need: Date, Description, and Amount.\nYou have completed Lesson 2!`;
+              response = `END Excellent!\nYou need: Date, Description, and Amount.\nYou have completed Lesson 2! Progress saved.`;
             } else {
               response = `CON Incomplete. Remember you need THREE details (Date, Description, Amount).\nTry again:`;
             }
@@ -175,7 +172,6 @@ export const handleUSSD = async (req: Request, res: Response, next: NextFunction
     res.setHeader('Content-Type', 'text/plain');
     res.status(200).send(response);
   } catch (error: any) {
-    // Log the actual error message and stack trace
     logger.error('Error processing USSD request', { 
       message: error?.message, 
       stack: error?.stack, 
