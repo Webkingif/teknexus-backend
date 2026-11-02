@@ -19,7 +19,10 @@ const normalizeAmount = (a: string): string => a.replace(/[^0-9]/g, '');
  * Expects body parameters: sessionId, phoneNumber, text, date, id
  */
 export const handleSMS = async (req: Request, res: Response): Promise<void> => {
-  const { sessionId, phoneNumber, text } = req.body;
+  const sessionId = req.body.sessionId;
+  // Fallback to req.body.from if phoneNumber is missing
+  const phoneNumber = req.body.phoneNumber || req.body.from; 
+  const text = req.body.text;
 
   logger.info('Incoming SMS request', { sessionId, phoneNumber, text });
 
