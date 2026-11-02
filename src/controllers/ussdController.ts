@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { pool } from '../config/database.js';
 import { logger } from '../utils/logger.js';
+import { updateUserProgress, getUserProgress } from '../services/progressService.js';
 
 export const handleUSSD = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const { sessionId, serviceCode, phoneNumber, text } = req.body;
