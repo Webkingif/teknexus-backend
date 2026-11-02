@@ -109,6 +109,7 @@ export const handleSMS = async (req: Request, res: Response): Promise<void> => {
     await sms.send({
       to: [phoneNumber],
       message: replyMessage,
+      from: 'sandbox',
     });
 
     res.status(200).send('SMS Processed Successfully');
