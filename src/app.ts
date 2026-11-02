@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import { handleUSSD } from './controllers/ussdController.ts';
 import { logger } from './utils/logger.ts';
 
-const app: Application> = express();
+const app: Application = express();
 
 // Security & Middleware
 app.use(helmet());
