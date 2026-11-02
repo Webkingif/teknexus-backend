@@ -19,13 +19,18 @@ const normalizeAmount = (a: string): string => a.replace(/[^0-9]/g, '');
  * Expects body parameters: sessionId, phoneNumber, text, date, id
  */
 export const handleSMS = async (req: Request, res: Response): Promise<void> => {
-  const sessionId = req.body.sessionId;
-  // Fallback to req.body.from if phoneNumber is missing
-  const phoneNumber = req.body.phoneNumber || req.body.from; 
-  const text = req.body.text;
+    // Debug log the full body to inspect incoming payload keys
+  logger.info('Raw SMS webhook body received:', req.body);
 
-  logger.info('Incoming SMS request', { sessionId, phoneNumber, text });
+  const sessionId = req.body.sessionId || req.body.id;
+  // Fallback across all possible variations of phone/from keys
+  const phoneNumber = req.body.phoneNumber || req.body.from || req.body.sender;
+  const text = req.body.text || req.body.message;
 
+  if (!phoneNumber) {
+    res.status(400).send('Bad Request: Missing phone number or sender');
+    return;
+  }
   try {
     // 1. Ensure user exists in database (Auto-registration)
     let userResult = await pool.query('SELECT id FROM users WHERE phone_number = $1', [phoneNumber]);
