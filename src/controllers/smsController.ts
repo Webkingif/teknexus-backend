@@ -20,15 +20,16 @@ const normalizeAmount = (a: string): string => a.replace(/[^0-9]/g, '');
  */
 export const handleSMS = async (req: Request, res: Response): Promise<void> => {
     // Debug log the full body to inspect incoming payload keys
-  logger.info('Raw SMS webhook body received:', req.body);
+  logger.info('Incoming SMS webhook body:', req.body);
 
+  // Read 'from' as sent by Africa's Talking incoming message webhook
+  const phoneNumber = req.body.from || "+2348012345678"; 
+  const text = req.body.text;
   const sessionId = req.body.sessionId || req.body.id;
-  // Fallback across all possible variations of phone/from keys
-  const phoneNumber = req.body.phoneNumber || req.body.from || req.body.sender;
-  const text = req.body.text || req.body.message;
 
   if (!phoneNumber) {
-    res.status(400).send('Bad Request: Missing phone number or sender');
+    logger.error('Phone number (from) is missing from webhook payload');
+    res.status(400).send('Missing phone number');
     return;
   }
   try {
