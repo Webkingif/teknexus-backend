@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+// @ts-ignore
 import AfricasTalking from 'africastalking';
 import { pool } from '../config/database.js';
 import { logger } from '../utils/logger.js';
