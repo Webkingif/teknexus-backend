@@ -116,12 +116,12 @@ export const handleSMS = async (req: Request, res: Response): Promise<void> => {
     }
 
     // 4. Send SMS back to user via Africa's Talking SDK
-    await sms.send({
-      to: [phoneNumber],
-      message: replyMessage,
-      from: 'Sandbox',
-    });
+  const result = await sms.send({
+  to: [phoneNumber],
+  message: replyMessage,
+});
 
+logger.info('Africa Talking SMS response:', result);
     res.status(200).send('SMS Processed Successfully');
   } catch (error: any) {
     logger.error('Error processing incoming SMS', {
