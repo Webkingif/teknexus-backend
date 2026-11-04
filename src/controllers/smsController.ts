@@ -122,7 +122,7 @@ export const handleSMS = async (req: Request, res: Response): Promise<void> => {
 });
 
 logger.info('Africa Talking SMS response:', result);
-    res.status(200).send('SMS Processed Successfully');
+    res.status(200).send(replyMessage);
   } catch (error: any) {
     logger.error('Error processing incoming SMS', {
       message: error?.message,
