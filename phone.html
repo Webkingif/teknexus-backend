@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+ <title>Realistic Smartphone Simulator · AT USSD & SMS Sandbox</title>
+ <script src="https://cdn.tailwindcss.com"></script>
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+ <style>
+ @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap');
+ 
+* {
+ box-sizing: border-box;
+ user-select: none;
+ -webkit-user-select: none;
+ font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+ }
+
+ :root {
+ --phone-bg: #090d16;
+ --app-bg: #0f172a;
+ --card-bg: rgba(30, 41, 59, 0.7);
+ --card-border: rgba(255, 255, 255, 0.1);
+ --text-main: #f8fafc;
+ --text-sub: #94a3b8;
+ --accent: #3b82f6;
+ --accent-hover: #2563eb;
+ --brightness: 1;
+ }
+
+ .light-theme {
+ --phone-bg: #f1f5f9;
+ --app-bg: #f8fafc;
+ --card-bg: rgba(255, 255, 255, 0.85);
+ --card-border: rgba(0, 0, 0, 0.08);
+ --text-main: #0f172a;
+ --text-sub: #64748b;
+ --accent: #2563eb;
+ --accent-hover: #1d4ed8;
+ }
+
+ body {
+ background: radial-gradient(circle at 50% 30%, #1e293b, #090d16);
+ min-height: 100vh;
+ margin: 0;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ padding: 12px;
+ /* FIX: Changed from overflow: hidden to allow safe containment/scrolling on small screens */
+ overflow-y: auto; 
+ overflow-x: hidden;
+ }
+
+ /* PHONE CONTAINER & HARDWARE */
+ .phone-wrapper {
+ position: relative;
+ padding: 10px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ }
+
+ .side-button {
+ position: absolute;
+ background: #334155;
+ border-radius: 4px;
+ cursor: pointer;
+ transition: background 0.1s;
+ z-index: 5;
+ }
+ .side-button:active { background: #64748b; }
+ .btn-vol-up { left: 7px; top: 140px; width: 6px; height: 50px; }
+ .btn-vol-down { left: 7px; top: 200px; width: 6px; height: 50px; }
+ .btn-power { right: 7px; top: 160px; width: 6px; height: 75px; }
+
+ .phone-outer {
+ width: 380px;
+ height: 780px;
+ background: #1e293b;
+ border-radius: 54px;
+ padding: 12px;
+ box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 2px rgba(255, 255, 255, 0.15), inset 0 0 0 2px rgba(0, 0, 0, 0.8);
+ position: relative;
+ transform-origin: center center;
+ transition: transform 0.2s ease;
+ }
+
+ /* FIX: Automatically scale down phone frame on smaller mobile screens */
+ @media (max-width: 420px) {
+ .phone-outer {
+ transform: scale(0.82);
+ margin: -60px 0; /* Pulls up surrounding whitespace caused by scaling */
+ }
+ }
+ @media (max-width: 340px) {
+ .phone-outer {
+ transform: scale(0.72);
+ margin: -90px 0;
+ }
+ }
+
+ .phone-inner {
+ width: 100%;
+ height: 100%;
+ background: var(--app-bg);
+ border-radius: 44px;
+ overflow: hidden;
+ position: relative;
+ display: flex;
+ flex-direction: column;
+ filter: brightness(var(--brightness));
+ box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+ }
+
+ /* DYNAMIC ISLAND / NOTCH */
+ .notch-area {
+ position: absolute;
+ top: 8px;
+ left: 50%;
+ transform: translateX(-50%);
+ width: 120px;
+ height: 28px;
+ background: #000;
+ border-radius: 20px;
+ z-index: 100;
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ padding: 0 10px;
+ transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+ cursor: pointer;
+ }
+ .notch-area.expanded {
+ width: 280px;
+ height: 60px;
+ border-radius: 30px;
+ }
+ .camera-lens {
+ width: 12px;
+ height: 12px;
+ background: #0a1128;
+ border-radius: 50%;
+ border: 2px solid #1e293b;
+ }
+ .speaker-grille {
+ width: 45px;
+ height: 4px;
+ background: #1e293b;
+ border-radius: 4px;
+ }
+
+ /* STATUS BAR */
+ .status-bar {
+ height: 40px;
+ padding: 10px 24px 0 24px;
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ font-size: 13px;
+ font-weight: 600;
+ color: var(--text-main);
+ z-index: 50;
+ }
+
+ /* SCREEN MANAGEMENT */
+ .screen {
+ position: absolute;
+ inset: 0;
+ top: 40px;
+ bottom: 24px;
+ display: flex;
+ flex-direction: column;
+ opacity: 0;
+ pointer-events: none;
+ transform: scale(0.96);
+ transition: transform 0.25s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.2s ease;
+ background: var(--app-bg);
+ color: var(--text-main);
+ }
+ .screen.active {
+ opacity: 1;
+ pointer-events: auto;
+ transform: scale(1);
+ }
+
+ /* LOCK SCREEN */
+ #lockScreen {
+ top: 0;
+ bottom: 0;
+ background: linear-gradient(160deg, #1e1b4b 0%, #0f172a 50%, #0284c7 100%);
+ background-size: cover;
+ background-position: center;
+ z-index: 90;
+ }
+
+ /* HOME INDICATOR BAR */
+ .home-bar-container {
+ position: absolute;
+ bottom: 0;
+ left: 0;
+ right: 0;
+ height: 24px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ z-index: 99;
+ cursor: pointer;
+ }
+ .home-bar {
+ width: 130px;
+ height: 5px;
+ background: var(--text-main);
+ opacity: 0.6;
+ border-radius: 10px;
+ transition: all 0.2s;
+ }
+ .home-bar-container:hover .home-bar {
+ opacity: 1;
+ width: 140px;
+ }
+
+ /* GLASSMORPHISM CARD */
+ .glass-card {
+ background: var(--card-bg);
+ backdrop-filter: blur(16px);
+ -webkit-backdrop-filter: blur(16px);
+ border: 1px solid var(--card-border);
+ border-radius: 20px;
+ }
+
+ /* PRESERVE LINE BREAKS FOR USSD AND SMS MESSAGES */
+ .preserve-breaks {
+ white-space: pre-wrap !important;
+ word-break: break-word;
+ }
+ .preserve-breaks:first-line {
+ line-height: inherit;
+ }
+
+ /* DIALPAD */
+ .dial-btn {
+ width: 64px;
+ height: 64px;
+ border-radius: 50%;
+ background: var(--card-bg);
+ border: 1px solid var(--card-border);
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ font-size: 22px;
+ font-weight: 600;
+ cursor: pointer;
+ transition: all 0.15s active;
+ }
+ .dial-btn:active {
+ background: var(--accent);
+ color: white;
+ transform: scale(0.92);
+ }
+
+ /* SCROLLBAR */
+ ::-webkit-scrollbar { width: 4px; }
+ ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 4px; }
+ </style>
+</head>
+<body>
+
+ <!-- HARDWARE WRAPPER -->
+ <div class="phone-wrapper">
+ <!-- HARDWARE BUTTONS -->
+ <div class="side-button btn-vol-up" id="hwVolUp" title="Volume Up"></div>
+ <div class="side-button btn-vol-down" id="hwVolDown" title="Volume Down"></div>
+ <div class="side-button btn-power" id="hwPower" title="Power Lock/Unlock"></div>
+
+ <!-- MAIN PHONE CHASSIS -->
+ <div class="phone-outer">
+ <div class="phone-inner" id="phoneInner">
+
+ <!-- DYNAMIC ISLAND / NOTCH -->
+ <div class="notch-area" id="dynamicNotch">
+ <div class="camera-lens"></div>
+ <div id="notchContent" class="hidden text-xs text-slate-300 font-medium flex items-center gap-2">
+ <span class="animate-pulse text-emerald-400"><i class="fa-solid fa-phone"></i></span>
+ <span id="notchText">Call in progress...</span>
+ </div>
+ <div class="speaker-grille"></div>
+ </div>
+
+ <!-- STATUS BAR -->
+ <div class="status-bar">
+ <span id="statusTime">12:00</span>
+ <div class="flex items-center gap-2 font-normal text-xs">
+ <i class="fa-solid fa-signal" id="statusSignal"></i>
+ <i class="fa-solid fa-wifi" id="statusWifi"></i>
+ <span id="statusBatteryText">98%</span>
+ <i class="fa-solid fa-battery-full text-emerald-400" id="statusBatteryIcon"></i>
+ </div>
+ </div>
+
+ <!-- LOCK SCREEN -->
+ <div class="screen active" id="lockScreen">
+ <div class="flex-1 flex flex-direction flex-col items-center pt-12 px-6">
+ <i class="fa-solid fa-lock text-slate-300 mb-4 text-sm opacity-80" id="lockIcon"></i>
+ <div id="lockTime" class="text-6xl font-extralight tracking-tight text-white mb-1">12:00</div>
+ <div id="lockDate" class="text-sm font-medium text-slate-300">Wednesday, November 4</div>
+
+ <!-- Lockscreen Notifications widget -->
+ <div class="w-full mt-10 space-y-3">
+ <div class="glass-card p-3 flex items-center gap-3 text-left cursor-pointer" onclick="unlockPhone('messages')">
+ <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg"><i class="fa-solid fa-comment"></i></div>
+ <div class="flex-1 min-w-0">
+ <div class="flex justify-between text-xs text-slate-400">
+ <span class="font-semibold text-slate-200">Africa's Talking Sandbox</span>
+ <span>Just now</span>
+ </div>
+ <p class="text-xs text-slate-300 truncate" id="lockMsgPreview">System initialized. Click to view messages.</p>
+ </div>
+ </div>
+ </div>
+ </div>
+
+ <div class="pb-10 flex flex-col items-center justify-end">
+ <div class="text-xs text-slate-300 font-medium animate-bounce mb-2">Swipe up or Click Bar to Unlock</div>
+ <button onclick="unlockPhone()" class="px-6 py-2 bg-white/20 backdrop-blur-md rounded-full text-white text-xs font-semibold hover:bg-white/30 transition">Unlock Device</button>
+ </div>
+ </div>
+
+ <!-- HOME SCREEN -->
+ <div class="screen" id="homeScreen">
+ <div class="p-5 flex-1 overflow-y-auto">
+ <!-- Clock/Weather Widget -->
+ <div class="glass-card p-4 mb-6 flex justify-between items-center cursor-pointer" onclick="openApp('clockApp')">
+ <div>
+ <div class="text-2xl font-bold" id="widgetTime">12:00 PM</div>
+ <div class="text-xs text-slate-400" id="widgetDate">Wed, Nov 4 · Sunny</div>
+ </div>
+ <div class="text-right">
+ <div class="text-2xl font-semibold text-amber-400"><i class="fa-solid fa-sun"></i> 28°C</div>
+ <div class="text-[10px] text-slate-400">Lagos, Nigeria</div>
+ </div>
+ </div>
+
+ <!-- APPS GRID -->
+ <div class="grid grid-cols-4 gap-4">
+ <!-- Phone -->
+ <button onclick="openApp('phoneApp')" class="flex flex-col items-center gap-1 group">
+ <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center text-white text-2xl shadow-lg group-active:scale-90 transition">
+ <i class="fa-solid fa-phone"></i>
+ </div>
+ <span class="text-[11px] font-medium text-slate-200">Phone</span>
+ </button>
+
+ <!-- Messages -->
+ <button onclick="openApp('messagesApp')" class="flex flex-col items-center gap-1 group relative">
+ <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white text-2xl shadow-lg group-active:scale-90 transition">
+ <i class="fa-solid fa-comment"></i>
+ </div>
+ <span id="homeMsgBadge" class="absolute -top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-slate-900 hidden">1</span>
+ <span class="text-[11px] font-medium text-slate-200">Messages</span>
+ </button>
+
+ <!-- Settings -->
+ <button onclick="openApp('settingsApp')" class="flex flex-col items-center gap-1 group">
+ <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-600 to-slate-400 flex items-center justify-center text-white text-2xl shadow-lg group-active:scale-90 transition">
+ <i class="fa-solid fa-gear"></i>
+ </div>
+ <span class="text-[11px] font-medium text-slate-200">Settings</span>
+ </button>
+
+ <!-- Calculator -->
+ <button onclick="openApp('calcApp')" class="flex flex-col items-center gap-1 group">
+ <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white text-2xl shadow-lg group-active:scale-90 transition">
+ <i class="fa-solid fa-calculator"></i>
+ </div>
+ <span class="text-[11px] font-medium text-slate-200">Calculator</span>
+ </button>
+
+ <!-- Notes -->
+ <button onclick="openApp('notesApp')" class="flex flex-col items-center gap-1 group">
+ <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-white text-2xl shadow-lg group-active:scale-90 transition">
+ <i class="fa-solid fa-note-sticky"></i>
+ </div>
+ <span class="text-[11px] font-medium text-slate-200">Notes</span>
+ </button>
+
+ <!-- Clock -->
+ <button onclick="openApp('clockApp')" class="flex flex-col items-center gap-1 group">
+ <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-white text-2xl shadow-lg group-active:scale-90 transition">
+ <i class="fa-solid fa-clock"></i>
+ </div>
+ <span class="text-[11px] font-medium text-slate-200">Clock</span>
+ </button>
+
+ <!-- Camera -->
+ <button onclick="openApp('cameraApp')" class="flex flex-col items-center gap-1 group">
+ <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-rose-500 to-red-600 flex items-center justify-center text-white text-2xl shadow-lg group-active:scale-90 transition">
+ <i class="fa-solid fa-camera"></i>
+ </div>
+ <span class="text-[11px] font-medium text-slate-200">Camera</span>
+ </button>
+
+ <!-- AT Sandbox Info -->
+ <button onclick="openApp('settingsApp')" class="flex flex-col items-center gap-1 group">
+ <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white text-xl shadow-lg group-active:scale-90 transition">
+ <i class="fa-solid fa-server"></i>
+ </div>
+ <span class="text-[11px] font-medium text-slate-200">API Ping</span>
+ </button>
+ </div>
+ </div>
+ </div>
+
+ <!-- APP: PHONE (KEYPAD / USSD / CALLS / RECENTS) -->
+ <div class="screen" id="phoneApp">
+ <!-- App Header -->
+ <div class="p-3 bg-slate-900/60 border-b border-slate-800 flex justify-between items-center">
+ <span class="font-bold text-base flex items-center gap-2">
+ <i class="fa-solid fa-phone text-emerald-400"></i> Phone & USSD
+ </span>
+ <div class="flex bg-slate-800 rounded-lg p-1 text-xs">
+ <button onclick="switchPhoneTab('keypad')" id="tabKeypadBtn" class="px-3 py-1 rounded-md bg-blue-600 font-semibold">Keypad</button>
+ <button onclick="switchPhoneTab('recents')" id="tabRecentsBtn" class="px-3 py-1 rounded-md text-slate-400">Recents</button>
+ </div>
+ </div>
+
+ <!-- TAB 1: KEYPAD -->
+ <div id="phoneTabKeypad" class="flex-1 flex flex-col p-4">
+ <!-- Number Display -->
+ <div class="flex-1 flex items-center justify-center px-4 relative">
+ <div id="dialDisplay" class="text-3xl font-light tracking-widest text-center truncate w-full"></div>
+ <button onclick="deleteDialDigit()" class="absolute right-4 text-slate-400 hover:text-white p-2" id="dialDeleteBtn" style="visibility: hidden;">
+ <i class="fa-solid fa-backspace text-xl"></i>
+ </button>
+ </div>
+
+ <!-- Keypad Buttons -->
+ <div class="grid grid-cols-3 gap-y-4 gap-x-6 justify-items-center mb-4">
+ <button class="dial-btn" onclick="appendDial('1')">1<span class="text-[9px] text-slate-400 font-normal">~</span></button>
+ <button class="dial-btn" onclick="appendDial('2')">2<span class="text-[9px] text-slate-400 font-normal">ABC</span></button>
+ <button class="dial-btn" onclick="appendDial('3')">3<span class="text-[9px] text-slate-400 font-normal">DEF</span></button>
+ <button class="dial-btn" onclick="appendDial('4')">4<span class="text-[9px] text-slate-400 font-normal">GHI</span></button>
+ <button class="dial-btn" onclick="appendDial('5')">5<span class="text-[9px] text-slate-400 font-normal">JKL</span></button>
+ <button class="dial-btn" onclick="appendDial('6')">6<span class="text-[9px] text-slate-400 font-normal">MNO</span></button>
+ <button class="dial-btn" onclick="appendDial('7')">7<span class="text-[9px] text-slate-400 font-normal">PQRS</span></button>
+ <button class="dial-btn" onclick="appendDial('8')">8<span class="text-[9px] text-slate-400 font-normal">TUV</span></button>
+ <button class="dial-btn" onclick="appendDial('9')">9<span class="text-[9px] text-slate-400 font-normal">WXYZ</span></button>
+ <button class="dial-btn" onclick="appendDial('*')">*</button>
+ <button class="dial-btn" onclick="appendDial('0')">0<span class="text-[9px] text-slate-400 font-normal">+</span></button>
+ <button class="dial-btn" onclick="appendDial('#')">#</button>
+ </div>
+
+ <!-- Call / Launch Button -->
+ <div class="flex justify-center gap-6 items-center">
+ <button onclick="initiateCallOrUSSD()" class="w-16 h-16 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-2xl flex items-center justify-center shadow-lg active:scale-95 transition">
+ <i class="fa-solid fa-phone"></i>
+ </button>
+ </div>
+ </div>
+
+ <!-- TAB 2: RECENTS -->
+ <div id="phoneTabRecents" class="flex-1 p-4 overflow-y-auto hidden">
+ <div class="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Call History</div>
+ <div id="recentsList" class="space-y-2">
+ <!-- Dynamically populated -->
+ </div>
+ </div>
+
+ <!-- USSD SESSION OVERLAY -->
+ <div id="ussdOverlay" class="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-6 hidden z-50">
+ <div class="bg-white text-slate-900 w-full max-w-[310px] rounded-2xl shadow-2xl overflow-hidden flex flex-col p-5 animate-in fade-in zoom-in-95 duration-150">
+ <div id="ussdContent" class="text-sm preserve-breaks text-slate-800 leading-relaxed max-h-64 overflow-y-auto mb-4 font-normal">
+ Requesting...
+ </div>
+ <div class="border-t border-slate-300 pt-3 mb-4" id="ussdInputRow">
+ <input type="text" id="ussdInput" class="w-full bg-transparent border-0 border-b-2 border-slate-400 pb-1 text-sm text-slate-900 focus:outline-none focus:border-orange-600 font-mono" placeholder="">
+ </div>
+ <div class="flex justify-end gap-5 text-sm font-semibold text-orange-600">
+ <button onclick="closeUssdSession()" class="hover:opacity-80 transition py-1 px-2">CANCEL</button>
+ <button onclick="submitUssdReply()" class="hover:opacity-80 transition py-1 px-2" id="ussdSendBtn">SEND</button>
+ </div>
+ </div>
+ </div>
+
+ <!-- ACTIVE VOICE CALL SCREEN -->
+ <div id="voiceCallOverlay" class="absolute inset-0 bg-slate-900 flex flex-col justify-between p-8 hidden z-50">
+ <div class="text-center pt-8">
+ <div class="w-20 h-20 rounded-full bg-slate-700 text-slate-300 text-3xl flex items-center justify-center mx-auto mb-4">
+ <i class="fa-solid fa-user"></i>
+ </div>
+ <h2 id="callTargetName" class="text-xl font-bold">Calling...</h2>
+ <p id="callStatusText" class="text-xs text-emerald-400 mt-1 font-medium">00:00</p>
+ </div>
+
+ <div class="grid grid-cols-3 gap-6 mb-8 text-center">
+ <button onclick="toggleCallMute(this)" class="flex flex-col items-center gap-1 text-slate-300">
+ <div class="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center text-lg"><i class="fa-solid fa-microphone-slash"></i></div>
+ <span class="text-[10px]">Mute</span>
+ </button>
+ <button onclick="toggleCallKeypad()" class="flex flex-col items-center gap-1 text-slate-300">
+ <div class="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center text-lg"><i class="fa-solid fa-grip"></i></div>
+ <span class="text-[10px]">Keypad</span>
+ </button>
+ <button onclick="toggleCallSpeaker(this)" class="flex flex-col items-center gap-1 text-slate-300">
+ <div class="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center text-lg"><i class="fa-solid fa-volume-high"></i></div>
+ <span class="text-[10px]">Speaker</span>
+ </button>
+ </div>
+
+ <div class="flex justify-center pb-6">
+ <button onclick="endVoiceCall()" class="w-16 h-16 rounded-full bg-red-600 text-white text-2xl flex items-center justify-center shadow-lg active:scale-90 transition">
+ <i class="fa-solid fa-phone-slash"></i>
+ </button>
+ </div>
+ </div>
+ </div>
+
+ <!-- APP: MESSAGES (SMS) -->
+ <div class="screen" id="messagesApp">
+ <div id="msgInboxView" class="flex-1 flex flex-col">
+ <div class="p-4 bg-slate-900/60 border-b border-slate-800 flex justify-between items-center">
+ <h1 class="font-bold text-lg">Messages</h1>
+ <button onclick="openNewMsgModal()" class="w-8 h-8 rounded-full bg-blue-600 text-white text-sm flex items-center justify-center">
+ <i class="fa-solid fa-pen"></i>
+ </button>
+ </div>
+
+ <div class="p-3">
+ <div class="relative">
+ <i class="fa-solid fa-search absolute left-3 top-3 text-xs text-slate-500"></i>
+ <input type="text" id="msgSearchInput" onkeyup="filterMessages()" placeholder="Search messages..." class="w-full bg-slate-800/80 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none">
+ </div>
+ </div>
+
+ <div id="msgThreadList" class="flex-1 overflow-y-auto px-3 space-y-2"></div>
+ </div>
+
+ <div id="msgChatView" class="flex-1 flex flex-col hidden">
+ <div class="p-3 bg-slate-900/80 border-b border-slate-800 flex items-center gap-3">
+ <button onclick="closeChatThread()" class="text-blue-400 p-1"><i class="fa-solid fa-chevron-left text-lg"></i></button>
+ <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">AT</div>
+ <div class="flex-1 min-w-0">
+ <div class="font-bold text-sm truncate" id="chatContactName">Africa's Talking Bot</div>
+ <div class="text-[10px] text-emerald-400" id="chatContactStatus">Online · Backend Active</div>
+ </div>
+ </div>
+
+ <div id="chatBubbleContainer" class="flex-1 overflow-y-auto max-h-[570px] p-4 space-y-3"></div>
+
+ <div id="emojiPicker" class="hidden bg-slate-900 border-t border-slate-800 p-2 grid grid-cols-6 gap-2 text-xl text-center">
+ <span class="cursor-pointer" onclick="addEmoji('👍')">👍</span>
+ <span class="cursor-pointer" onclick="addEmoji('👋')">👋</span>
+ <span class="cursor-pointer" onclick="addEmoji('😀')">😀</span>
+ <span class="cursor-pointer" onclick="addEmoji('🔥')">🔥</span>
+ <span class="cursor-pointer" onclick="addEmoji('🎉')">🎉</span>
+ <span class="cursor-pointer" onclick="addEmoji('💡')">💡</span>
+ </div>
+
+ <div class="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+ <button onclick="toggleEmojiPicker()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-face-smile text-lg"></i></button>
+ <input type="text" id="smsInput" placeholder="Text message (SMS)... text API" class="flex-1 bg-slate-800 border border-slate-700 rounded-full px-4 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+ <button onclick="sendSmsMessage()" class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs hover:bg-blue-500">
+ <i class="fa-solid fa-paper-plane"></i>
+ </button>
+ </div>
+ </div>
+ </div>
+
+ <!-- APP: SETTINGS -->
+ <div class="screen" id="settingsApp">
+ <div class="p-4 bg-slate-900/60 border-b border-slate-800 font-bold text-lg">
+ <i class="fa-solid fa-gear text-slate-400"></i> Settings
+ </div>
+ <div class="flex-1 overflow-y-auto p-4 space-y-4">
+ <div class="glass-card p-4">
+ <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Simulated Identity</h3>
+ <label class="text-xs text-slate-300 block mb-1">Mobile Number (Format +234...)</label>
+ <div class="flex gap-2">
+ <input type="text" id="cfgPhoneNumber" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-mono" value="+2348056662541">
+ <button onclick="savePhoneSetting()" class="bg-blue-600 px-3 py-1.5 rounded-lg text-xs font-semibold text-white">Save</button>
+ </div>
+ </div>
+
+ <div class="glass-card p-4">
+ <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Africa's Talking Endpoint</h3>
+ <div class="space-y-2 text-xs">
+ <label class="flex items-center gap-2 cursor-pointer">
+ <input type="radio" name="cfgBackend" value="codespaces" onclick="setBackendUrl(this.value)">
+ <span>GitHub Codespaces</span>
+ </label>
+  <label class="flex items-center gap-2 cursor-pointer">
+  <input type="radio" name="cfgBackend" value="liveDemo" checked onclick="setBackendUrl(this.value)">
+  <span>Live demo</span>
+ </label>
+ <label class="flex items-center gap-2 cursor-pointer">
+ <input type="radio" name="cfgBackend" value="localhost" onclick="setBackendUrl(this.value)">
+ <span>Localhost (http://localhost:3000)</span>
+ </label>
+ <div class="pt-2">
+ <input type="text" id="cfgCustomUrl" placeholder="Custom Endpoint URL..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white font-mono">
+ </div>
+ <button onclick="testBackendPing()" class="w-full mt-2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-2">
+ <i class="fa-solid fa-bolt text-amber-400"></i> Test Connection / Ping
+ </button>
+ <div id="pingResult" class="text-[11px] font-mono hidden p-2 rounded bg-slate-900 border border-slate-800 mt-2"></div>
+ </div>
+ </div>
+
+ <div class="glass-card p-4">
+ <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Display & System</h3>
+ <div class="space-y-4">
+ <div class="flex justify-between items-center text-xs">
+ <span>Light Mode / Dark Mode</span>
+ <button onclick="toggleTheme()" class="px-3 py-1 bg-slate-800 text-slate-200 rounded-lg border border-slate-700 text-xs" id="themeToggleBtn">Dark</button>
+ </div>
+ <div class="text-xs">
+ <div class="flex justify-between mb-1">
+ <span>Screen Brightness</span>
+ <span id="brightnessVal">100%</span>
+ </div>
+ <input type="range" min="30" max="100" value="100" oninput="adjustBrightness(this.value)" class="w-full accent-blue-500">
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+
+ <!-- APP: CALCULATOR -->
+ <div class="screen" id="calcApp">
+ <div class="flex-1 flex flex-col p-4">
+ <div class="flex-1 flex items-end justify-end text-4xl font-light font-mono px-4 mb-4 text-white break-all" id="calcDisplay">0</div>
+ <div class="grid grid-cols-4 gap-3">
+ <button onclick="calcClear()" class="dial-btn bg-slate-700 text-amber-400">C</button>
+ <button onclick="calcOp('+/-')" class="dial-btn bg-slate-700">±</button>
+ <button onclick="calcOp('%')" class="dial-btn bg-slate-700">%</button>
+ <button onclick="calcOp('/')" class="dial-btn bg-amber-500 text-white">÷</button>
+ <button onclick="calcNum('7')" class="dial-btn">7</button>
+ <button onclick="calcNum('8')" class="dial-btn">8</button>
+ <button onclick="calcNum('9')" class="dial-btn">9</button>
+ <button onclick="calcOp('*')" class="dial-btn bg-amber-500 text-white">×</button>
+ <button onclick="calcNum('4')" class="dial-btn">4</button>
+ <button onclick="calcNum('5')" class="dial-btn">5</button>
+ <button onclick="calcNum('6')" class="dial-btn">6</button>
+ <button onclick="calcOp('-')" class="dial-btn bg-amber-500 text-white">-</button>
+ <button onclick="calcNum('1')" class="dial-btn">1</button>
+ <button onclick="calcNum('2')" class="dial-btn">2</button>
+ <button onclick="calcNum('3')" class="dial-btn">3</button>
+ <button onclick="calcOp('+')" class="dial-btn bg-amber-500 text-white">+</button>
+ <button onclick="calcNum('0')" class="dial-btn col-span-2 w-full rounded-full">0</button>
+ <button onclick="calcNum('.')" class="dial-btn">.</button>
+ <button onclick="calcEquals()" class="dial-btn bg-amber-500 text-white">=</button>
+ </div>
+ </div>
+ </div>
+
+ <!-- APP: NOTES -->
+ <div class="screen" id="notesApp">
+ <div class="p-4 bg-slate-900/60 border-b border-slate-800 flex justify-between items-center">
+ <h1 class="font-bold text-base"><i class="fa-solid fa-note-sticky text-yellow-400"></i> Quick Notes</h1>
+ <button onclick="createNewNote()" class="text-xs bg-yellow-500 text-slate-900 font-bold px-3 py-1.5 rounded-lg">+ New</button>
+ </div>
+ <div class="flex-1 p-4 flex flex-col gap-3">
+ <textarea id="noteTextarea" placeholder="Type notes here... Saves automatically" class="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none resize-none font-mono"></textarea>
+ <div class="text-[10px] text-slate-500 text-right" id="noteSavedStatus">Saved locally</div>
+ </div>
+ </div>
+
+ <!-- APP: CLOCK / TIMER -->
+ <div class="screen" id="clockApp">
+ <div class="p-4 bg-slate-900/60 border-b border-slate-800 font-bold text-base flex items-center gap-2">
+ <i class="fa-solid fa-clock text-purple-400"></i> Stopwatch
+ </div>
+ <div class="flex-1 flex flex-col items-center justify-center p-6">
+ <div id="stopwatchDisplay" class="text-5xl font-mono font-light my-8">00:00.0</div>
+ <div class="flex gap-4">
+ <button id="swStartBtn" onclick="toggleStopwatch()" class="w-20 h-20 rounded-full bg-emerald-600 text-white font-bold text-sm shadow-lg">Start</button>
+ <button onclick="resetStopwatch()" class="w-20 h-20 rounded-full bg-slate-800 text-slate-300 font-bold text-sm">Reset</button>
+ </div>
+ </div>
+ </div>
+
+ <!-- APP: CAMERA -->
+ <div class="screen" id="cameraApp">
+ <div class="flex-1 bg-black relative flex flex-col justify-between p-4">
+ <div class="flex justify-between items-center text-white text-xs z-10">
+ <i class="fa-solid fa-bolt"></i>
+ <span>PHOTO</span>
+ <i class="fa-solid fa-arrows-rotate"></i>
+ </div>
+ <div class="absolute inset-0 flex items-center justify-center bg-slate-900">
+ <i class="fa-solid fa-camera text-6xl text-slate-800"></i>
+ </div>
+ <div class="z-10 flex justify-center pb-4">
+ <button onclick="takeSnapPhoto()" class="w-16 h-16 rounded-full border-4 border-white bg-white/20 active:bg-white transition"></button>
+ </div>
+ </div>
+ </div>
+
+ <!-- SYSTEM HOME BAR INDICATOR -->
+ <div class="home-bar-container" onclick="triggerHomeBarClick()" id="homeBarTrigger">
+ <div class="home-bar"></div>
+ </div>
+
+ </div>
+ </div>
+ </div>
+
+ <script>
+ let currentApp = 'lockScreen';
+ let isLocked = true;
+ let backendUrl = "https://curly-space-telegram-x5775jw4qr5qf6xr5-3000.app.github.dev";
+ let userPhoneNumber = "+2348056662541";
+ 
+ let dialedDigits = "";
+ let ussdSessionActive = false;
+ let ussdSessionId = null;
+ let ussdServiceCode = "";
+ let callTimerInterval = null;
+ let callSeconds = 0;
+ 
+ let chatMessages = [
+ { sender: 'bot', text: "Welcome to Africa's Talking Simulator! Send an SMS or dial USSD (*123#) to test.", time: '12:00 PM' }
+ ];
+
+ function updateClock() {
+ const now = new Date();
+ const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+ const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+ 
+ document.getElementById('statusTime').textContent = timeStr;
+ document.getElementById('lockTime').textContent = timeStr;
+ document.getElementById('lockDate').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+ document.getElementById('widgetTime').textContent = timeStr;
+ document.getElementById('widgetDate').textContent = `${dateStr} · Sunny`;
+ }
+ setInterval(updateClock, 1000);
+ updateClock();
+
+ function unlockPhone(targetApp = 'homeScreen') {
+ isLocked = false;
+ document.getElementById('lockIcon').className = "fa-solid fa-lock-open text-emerald-400 mb-4 text-sm opacity-80";
+ setTimeout(() => {
+ openApp(targetApp);
+ document.getElementById('lockScreen').classList.remove('active');
+ }, 150);
+ }
+
+ function openApp(appId) {
+ if (isLocked && appId !== 'lockScreen') return;
+ document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+ const target = document.getElementById(appId);
+ if (target) {
+ target.classList.add('active');
+ currentApp = appId;
+ }
+ }
+
+ function triggerHomeBarClick() {
+ if (isLocked) {
+ unlockPhone();
+ } else {
+ openApp('homeScreen');
+ }
+ }
+
+ document.getElementById('hwPower').addEventListener('click', () => {
+ if (isLocked) {
+ document.getElementById('lockScreen').classList.add('active');
+ } else {
+ isLocked = true;
+ document.getElementById('lockIcon').className = "fa-solid fa-lock text-slate-300 mb-4 text-sm opacity-80";
+ openApp('lockScreen');
+ }
+ });
+
+ let currentVol = 80;
+ document.getElementById('hwVolUp').addEventListener('click', () => {
+ currentVol = Math.min(100, currentVol + 10);
+ showNotchNotification(`Volume ${currentVol}%`);
+ });
+ document.getElementById('hwVolDown').addEventListener('click', () => {
+ currentVol = Math.max(0, currentVol - 10);
+ showNotchNotification(`Volume ${currentVol}%`);
+ });
+
+ function showNotchNotification(text) {
+ const notch = document.getElementById('dynamicNotch');
+ const content = document.getElementById('notchContent');
+ const txt = document.getElementById('notchText');
+ txt.textContent = text;
+ notch.classList.add('expanded');
+ content.classList.remove('hidden');
+ setTimeout(() => {
+ notch.classList.remove('expanded');
+ content.classList.add('hidden');
+ }, 2000);
+ }
+
+ function appendDial(digit) {
+ dialedDigits += digit;
+ updateDialDisplay();
+ }
+
+ function deleteDialDigit() {
+ dialedDigits = dialedDigits.slice(0, -1);
+ updateDialDisplay();
+ }
+
+ function updateDialDisplay() {
+ const disp = document.getElementById('dialDisplay');
+ const delBtn = document.getElementById('dialDeleteBtn');
+ disp.textContent = dialedDigits;
+ delBtn.style.visibility = dialedDigits.length > 0 ? 'visible' : 'hidden';
+ }
+
+ function switchPhoneTab(tab) {
+ document.getElementById('phoneTabKeypad').classList.toggle('hidden', tab !== 'keypad');
+ document.getElementById('phoneTabRecents').classList.toggle('hidden', tab !== 'recents');
+ document.getElementById('tabKeypadBtn').className = tab === 'keypad' ? 'px-3 py-1 rounded-md bg-blue-600 font-semibold' : 'px-3 py-1 rounded-md text-slate-400';
+ document.getElementById('tabRecentsBtn').className = tab === 'recents' ? 'px-3 py-1 rounded-md bg-blue-600 font-semibold' : 'px-3 py-1 rounded-md text-slate-400';
+ }
+
+ function initiateCallOrUSSD() {
+ const code = dialedDigits.trim();
+ if (!code) return;
+
+ if (code.startsWith('*') && code.endsWith('#')) {
+ startUssdSession(code);
+ } else {
+ startVoiceCall(code);
+ }
+ }
+
+ async function startUssdSession(code) {
+ ussdSessionActive = true;
+ ussdServiceCode = code;
+ ussdSessionId = 'ATUid_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+ window.ussdUserInputs = [];
+ 
+ document.getElementById('ussdOverlay').classList.remove('hidden');
+ document.getElementById('ussdContent').textContent = "Connecting to USSD Gateway...";
+ sendUssdApi(code, "");
+ }
+
+ async function submitUssdReply() {
+ const input = document.getElementById('ussdInput').value.trim();
+ document.getElementById('ussdInput').value = '';
+ if (!input) return;
+ 
+ if (!window.ussdUserInputs) window.ussdUserInputs = [];
+ window.ussdUserInputs.push(input);
+
+ const cumulativeText = window.ussdUserInputs.join('*');
+ document.getElementById('ussdContent').textContent = "Processing...";
+ sendUssdApi(ussdServiceCode, cumulativeText);
+ }
+
+ async function sendUssdApi(serviceCode, cumulativeText) {
+ try {
+ const response = await fetch(`${backendUrl}/ussd`, {
+ method: 'POST',
+ headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+ body: new URLSearchParams({
+ sessionId: ussdSessionId,
+ serviceCode: serviceCode,
+ phoneNumber: userPhoneNumber,
+ text: cumulativeText
+ })
+ });
+
+ if (response.ok) {
+ const resText = await response.text();
+ handleUssdResponse(resText);
+ } else {
+ fallbackMockUssd(cumulativeText);
+ }
+ } catch (err) {
+ fallbackMockUssd(cumulativeText);
+ }
+ }
+
+ function fallbackMockUssd(userText) {
+ let reply = "";
+ if (!userText || userText === "") {
+ reply = "CON Welcome to Basic Bookkeeping. Choose the module you want to study:\n1. Recording Money In and Out\n2. Sales, Costs and Profit\n3. Practical Bookkeeping\n4. Managing Stock and Credit\n5. Reviewing Business Records\n6. My Progress";
+ } else if (userText === "1") {
+ reply = "CON MODULE 1: Recording Money In and Out\nChoose a Lesson:\n1. Start Lesson 1\n2. Start Lesson 2\n3. Start Lesson 3\n4. Module Overview\n5. Main Menu";
+ } else if (userText === "1*2") {
+ reply = "CON LESSON 2: Cash Inflows vs Outflows\nUnderstanding revenue entering and exiting your register.\n\n1. Next\n0. Back";
+ } else if (userText === "1*2*1") {
+ reply = "END Lesson completed! Thank you for using Basic Bookkeeping.";
+ } else {
+ reply = "END Invalid option selected or session ended.";
+ }
+ handleUssdResponse(reply);
+ }
+
+ function handleUssdResponse(rawStr) {
+ const isEnd = rawStr.startsWith('END');
+ const cleanText = rawStr.replace(/^(CON|END)\s*/, '');
+ 
+ document.getElementById('ussdContent').textContent = cleanText;
+ const inputRow = document.getElementById('ussdInputRow');
+ const sendBtn = document.getElementById('ussdSendBtn');
+ 
+ if (inputRow) inputRow.style.display = isEnd ? 'none' : 'block';
+ if (sendBtn) sendBtn.style.display = isEnd ? 'none' : 'block';
+ 
+ if (isEnd) {
+ ussdSessionActive = false;
+ }
+ }
+
+ function closeUssdSession() {
+ document.getElementById('ussdOverlay').classList.add('hidden');
+ ussdSessionActive = false;
+ window.ussdUserInputs = [];
+ dialedDigits = "";
+ updateDialDisplay();
+ }
+
+ function startVoiceCall(number) {
+ document.getElementById('callTargetName').textContent = number;
+ document.getElementById('voiceCallOverlay').classList.remove('hidden');
+ callSeconds = 0;
+ 
+ callTimerInterval = setInterval(() => {
+ callSeconds++;
+ const mins = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+ const secs = String(callSeconds % 60).padStart(2, '0');
+ document.getElementById('callStatusText').textContent = `${mins}:${secs}`;
+ }, 1000);
+
+ const recents = document.getElementById('recentsList');
+ const item = document.createElement('div');
+ item.className = "glass-card p-3 flex justify-between items-center text-xs";
+ item.innerHTML = `
+ <div class="flex items-center gap-2">
+ <i class="fa-solid fa-phone-slash text-red-400"></i>
+ <span class="font-bold">${number}</span>
+ </div>
+ <span class="text-slate-400">Just now</span>
+ `;
+ recents.prepend(item);
+ }
+
+ function endVoiceCall() {
+ clearInterval(callTimerInterval);
+ document.getElementById('voiceCallOverlay').classList.add('hidden');
+ dialedDigits = "";
+ updateDialDisplay();
+ }
+
+ function toggleCallMute(btn) { btn.classList.toggle('text-amber-400'); }
+ function toggleCallSpeaker(btn) { btn.classList.toggle('text-blue-400'); }
+ function toggleCallKeypad() { showNotchNotification("Keypad Active"); }
+
+ function renderChatMessages() {
+ const container = document.getElementById('chatBubbleContainer');
+ const list = document.getElementById('msgThreadList');
+ container.innerHTML = '';
+ list.innerHTML = '';
+
+ chatMessages.forEach(msg => {
+ const bubble = document.createElement('div');
+ bubble.className = `flex flex-col ${msg.sender === 'me' ? 'items-end' : 'items-start'}`;
+ 
+ const textContainer = document.createElement('div');
+ textContainer.className = `max-w-[85%] rounded-2xl px-3.5 py-2 text-xs preserve-breaks ${msg.sender === 'me' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 rounded-bl-none'}`;
+ textContainer.textContent = msg.text.trimStart();
+
+ const timeSpan = document.createElement('span');
+ timeSpan.className = 'text-[9px] text-slate-500 mt-1 px-1';
+ timeSpan.textContent = msg.time;
+
+ bubble.appendChild(textContainer);
+ bubble.appendChild(timeSpan);
+ container.appendChild(bubble);
+ });
+
+ const lastMsg = chatMessages[chatMessages.length - 1];
+ const previewText = lastMsg.text.replace(/\n+/g, ' ');
+ list.innerHTML = `
+ <div onclick="openChatThread()" class="glass-card p-3 flex items-center gap-3 cursor-pointer">
+ <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">AT</div>
+ <div class="flex-1 min-w-0">
+ <div class="flex justify-between items-baseline mb-0.5">
+ <span class="font-bold text-xs">Africa's Talking Bot</span>
+ <span class="text-[10px] text-slate-400">${lastMsg.time}</span>
+ </div>
+ <p class="text-xs text-slate-400 truncate">${previewText}</p>
+ </div>
+ </div>
+ `;
+ container.scrollTop = container.scrollHeight;
+ }
+
+ function closeChatThread() {
+ document.getElementById('msgChatView').classList.add('hidden');
+ document.getElementById('msgInboxView').classList.remove('hidden');
+ }
+
+ function openChatThread() {
+ document.getElementById('msgInboxView').classList.add('hidden');
+ document.getElementById('msgChatView').classList.remove('hidden');
+ const container = document.getElementById('chatBubbleContainer');
+ if (container) container.scrollTop = container.scrollHeight;
+ }
+
+ function toggleEmojiPicker() {
+ document.getElementById('emojiPicker').classList.toggle('hidden');
+ }
+
+ function addEmoji(emoji) {
+ const input = document.getElementById('smsInput');
+ if (input) input.value += emoji;
+ }
+
+ function filterMessages() {
+ const query = document.getElementById('msgSearchInput').value.toLowerCase();
+ const list = document.getElementById('msgThreadList');
+ if (list) {
+ list.style.display = query && !"africa's talking bot".includes(query) ? 'none' : 'block';
+ }
+ }
+
+ function openNewMsgModal() { openChatThread(); }
+
+ async function sendSmsMessage() {
+ const input = document.getElementById('smsInput');
+ const text = input.value.trim();
+ if (!text) return;
+
+ const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+ chatMessages.push({ sender: 'me', text: text, time: timeStr });
+ input.value = '';
+ renderChatMessages();
+
+ try {
+ const response = await fetch(`${backendUrl}/sms`, {
+ method: 'POST',
+ headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+ body: new URLSearchParams({
+ from: userPhoneNumber,
+ text: text,
+ id: 'sim_' + Date.now()
+ })
+ });
+
+ if (response.ok) {
+ const reply = await response.text();
+ chatMessages.push({ sender: 'bot', text: reply, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+ } else {
+ chatMessages.push({ sender: 'bot', text: `HTTP ${response.status}: Failed to reach server.`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+ }
+ } catch (err) {
+ let botReply = "Received: " + text;
+ if (text.toUpperCase() === 'START') {
+ botReply = "Lesson 1: Introduction to Bookkeeping\nBookkeeping is the recording of financial transactions.\n\nReply NEXT to continue.";
+ }
+ chatMessages.push({ sender: 'bot', text: botReply, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+ }
+ renderChatMessages();
+ }
+
+ function savePhoneSetting() {
+ const val = document.getElementById('cfgPhoneNumber').value.trim();
+ if (val) {
+ userPhoneNumber = val;
+ showNotchNotification("Phone number saved");
+ }
+ }
+
+ function setBackendUrl(type) {
+ if (type === 'codespaces') {
+ backendUrl = "https://curly-space-telegram-x5775jw4qr5qf6xr5-3000.app.github.dev";
+ } else if (type === 'localhost') {
+ backendUrl = "http://localhost:3000";
+ }else if(type === "liveDemo"){
+  backendUrl = "https://nexus-app1.vercel.app"
+ }
+ document.getElementById('cfgCustomUrl').value = '';
+ }
+
+ async function testBackendPing() {
+ const custom = document.getElementById('cfgCustomUrl').value.trim();
+ if (custom) backendUrl = custom;
+ 
+ const resDiv = document.getElementById('pingResult');
+ resDiv.classList.remove('hidden');
+ resDiv.textContent = "Pinging " + backendUrl + "...";
+
+ try {
+ const start = Date.now();
+ const res = await fetch(`${backendUrl}/ussd`, { method: 'OPTIONS' });
+ const latency = Date.now() - start;
+ resDiv.className = "text-[11px] font-mono p-2 rounded bg-emerald-950 border border-emerald-800 text-emerald-300 mt-2";
+ resDiv.textContent = `Connected (${latency}ms) - Status ${res.status}`;
+ } catch (e) {
+ resDiv.className = "text-[11px] font-mono p-2 rounded bg-red-950 border border-red-800 text-red-300 mt-2";
+ resDiv.textContent = `Connection error: ${e.message}. Using offline fallback mode.`;
+ }
+ }
+
+ function toggleTheme() {
+ document.body.classList.toggle('light-theme');
+ const btn = document.getElementById('themeToggleBtn');
+ btn.textContent = document.body.classList.contains('light-theme') ? 'Light' : 'Dark';
+ }
+
+ function adjustBrightness(val) {
+ document.documentElement.style.setProperty('--brightness', val / 100);
+ document.getElementById('brightnessVal').textContent = val + '%';
+ }
+
+ let calcVal = "0";
+ function calcNum(n) {
+ if (calcVal === "0") calcVal = n;
+ else calcVal += n;
+ document.getElementById('calcDisplay').textContent = calcVal;
+ }
+ function calcClear() {
+ calcVal = "0";
+ document.getElementById('calcDisplay').textContent = calcVal;
+ }
+ function calcOp(op) {
+ calcVal += ` ${op} `;
+ document.getElementById('calcDisplay').textContent = calcVal;
+ }
+ function calcEquals() {
+ try {
+ const cleanExp = calcVal.replace(/×/g, '*').replace(/÷/g, '/');
+ calcVal = String(eval(cleanExp));
+ } catch (e) {
+ calcVal = "Error";
+ }
+ document.getElementById('calcDisplay').textContent = calcVal;
+ }
+
+ const noteArea = document.getElementById('noteTextarea');
+ if (noteArea) {
+ noteArea.value = localStorage.getItem('sim_note') || "Basic Bookkeeping SMS Notes:\n- START: Begin lesson\n- PROGRESS: View score\n- HELP: Support instructions";
+ noteArea.addEventListener('input', () => {
+ localStorage.setItem('sim_note', noteArea.value);
+ document.getElementById('noteSavedStatus').textContent = "Saved " + new Date().toLocaleTimeString();
+ });
+ }
+ function createNewNote() {
+ if (noteArea) {
+ noteArea.value = '';
+ localStorage.removeItem('sim_note');
+ document.getElementById('noteSavedStatus').textContent = "New note created";
+ }
+ }
+
+ let swInterval = null;
+ let swMs = 0;
+ function toggleStopwatch() {
+ const btn = document.getElementById('swStartBtn');
+ if (swInterval) {
+ clearInterval(swInterval);
+ swInterval = null;
+ btn.textContent = 'Start';
+ btn.className = 'w-20 h-20 rounded-full bg-emerald-600 text-white font-bold text-sm shadow-lg';
+ } else {
+ swInterval = setInterval(() => {
+ swMs += 100;
+ const totalSecs = Math.floor(swMs / 1000);
+ const mins = String(Math.floor(totalSecs / 60)).padStart(2, '0');
+ const secs = String(totalSecs % 60).padStart(2, '0');
+ const tenth = Math.floor((swMs % 1000) / 100);
+ document.getElementById('stopwatchDisplay').textContent = `${mins}:${secs}.${tenth}`;
+ }, 100);
+ btn.textContent = 'Stop';
+ btn.className = 'w-20 h-20 rounded-full bg-red-600 text-white font-bold text-sm shadow-lg';
+ }
+ }
+ function resetStopwatch() {
+ if (swInterval) {
+ clearInterval(swInterval);
+ swInterval = null;
+ }
+ swMs = 0;
+ document.getElementById('stopwatchDisplay').textContent = '00:00.0';
+ const btn = document.getElementById('swStartBtn');
+ btn.textContent = 'Start';
+ btn.className = 'w-20 h-20 rounded-full bg-emerald-600 text-white font-bold text-sm shadow-lg';
+ }
+
+ function takeSnapPhoto() {
+ showNotchNotification("Photo Saved to Gallery");
+ }
+
+ renderChatMessages();
+ </script>
+</body>
+</html>
