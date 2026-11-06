@@ -26,7 +26,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Serve static files 
 app.use(express.static(publicPath));
 // Serve phone.html at the root URL 
-app.get('/', (req, res) => { res.sendFile(path.join(publicPath, 'phone.html')); });
+app.get('/phone', (req, res) => { res.sendFile(path.join(publicPath, 'phone.html')); });
 
 // USSD Webhook Route
 app.post('/ussd', handleUSSD);
