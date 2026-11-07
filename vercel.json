@@ -1,18 +1,9 @@
 {
-  "version": 2,
-  "builds": [
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
     {
-      "src": "dist/server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["public/**", "dist/public/**"]
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "dist/server.js"
+      "source": "/phone",
+      "destination": "/phone.html"
     }
   ]
 }
