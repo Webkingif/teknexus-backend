@@ -27,7 +27,7 @@ const publicPath = publicPaths.find(p => fs.existsSync(p)) || publicPaths[0];
 
 // Security & Middleware
 // Configure Helmet so it doesn't block loading UI assets in the browser
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use((helmet as any)({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true })); 
