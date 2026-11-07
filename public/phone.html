@@ -723,13 +723,16 @@
  { sender: 'bot', text: "Welcome to Africa's Talking Simulator! Send an SMS or dial USSD (*123#) to test.", time: '12:00 PM' }
  ];
 function generateRandomPhoneNumber() {
-    // Generates a random 8-digit subscriber number suffix
-    const randomSubscriber = Math.floor(10000000 + Math.random() * 90000000);
-    // Combines country code (+234) and network prefix (e.g., 803, 805, 810) with the random suffix
-    const prefixes = ['803', '805', '810', '814', '816', '903', '703'];
+    // Common Nigerian mobile network prefixes
+    const prefixes = ['803', '805', '810', '814', '816', '903', '703', '902', '812', '705'];
     const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-    return `+234${randomPrefix}${String(randomSubscriber).substring(3)}`;
+    
+    // Generate the remaining 7 digits randomly to make a total of 10 digits after +234
+    const randomSubscriber = Math.floor(1000000 + Math.random() * 9000000);
+    
+    return `+234${randomPrefix}${randomSubscriber}`;
 }
+  
 let userPhoneNumber = generateRandomPhoneNumber();
 
   // Automatically update the Settings input field with the generated random number on load
