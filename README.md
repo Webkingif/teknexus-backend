@@ -43,8 +43,8 @@ Before you begin, ensure you have the following installed:
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/your-username/basic-bookkeeping-sms-bot.git
-   cd basic-bookkeeping-sms-bot
+   git clone https://github.com/Webkingif/teknexus-backend.git
+   cd teknexus-backend
    ```
 
 2. **Install dependencies:**
@@ -78,21 +78,3 @@ Before you begin, ensure you have the following installed:
      ```bash
      npm start
      ```
-
-## 🧪 Testing the Bot
-
-### Option A: Using the Local Chat Simulator
-
-1. Open the included `chat-simulator.html` file in any web browser.
-2. Ensure your backend server is running locally on port `3000` (or via your active GitHub Codespace public URL).
-3. Type keywords like `BOOK`, `START`, `PROGRESS`, or `HELP` to interact with the course curriculum in real time.
-
-### Option B: Using the Africa's Talking Sandbox
-
-1. Configure your local backend tunnel (e.g., via ngrok or GitHub Codespaces public port).
-2. Set your webhook URL in the Africa's Talking Sandbox Dashboard under SMS Callback URLs (e.g., `https://your-domain.app/sms`).
-3. Use the Africa's Talking Web Simulator to send test triggers. Note: Ensure your code uses `from: 'Sandbox'` during sandbox testing to prevent shortcode lookup failures.
-
-## 📄 License
-
-This project is licensed under the MIT License.
