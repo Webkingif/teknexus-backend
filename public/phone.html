@@ -710,7 +710,7 @@
  let currentApp = 'lockScreen';
  let isLocked = true;
  let backendUrl = "https://curly-space-telegram-x5775jw4qr5qf6xr5-3000.app.github.dev";
- let userPhoneNumber = "+2348056662541";
+ 
  
  let dialedDigits = "";
  let ussdSessionActive = false;
@@ -722,6 +722,25 @@
  let chatMessages = [
  { sender: 'bot', text: "Welcome to Africa's Talking Simulator! Send an SMS or dial USSD (*123#) to test.", time: '12:00 PM' }
  ];
+function generateRandomPhoneNumber() {
+    // Generates a random 8-digit subscriber number suffix
+    const randomSubscriber = Math.floor(10000000 + Math.random() * 90000000);
+    // Combines country code (+234) and network prefix (e.g., 803, 805, 810) with the random suffix
+    const prefixes = ['803', '805', '810', '814', '816', '903', '703'];
+    const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    return `+234${randomPrefix}${String(randomSubscriber).substring(3)}`;
+}
+let userPhoneNumber = generateRandomPhoneNumber();
+
+  // Automatically update the Settings input field with the generated random number on load
+window.addEventListener('DOMContentLoaded', () => {
+    const phoneInput = document.getElementById('cfgPhoneNumber');
+    if (phoneInput) {
+        phoneInput.value = userPhoneNumber;
+    }
+});
+  
+  
 
  function updateClock() {
  const now = new Date();
