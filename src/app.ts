@@ -4,9 +4,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import fs from 'fs';
-import { handleUSSD } from './controllers/ussdController';
-import { logger } from './utils/logger';
-import smsRoutes from './routes/smsRoutes';
+import { handleUSSD } from './controllers/ussdController.js';
+import { logger } from './utils/logger.js';
+import smsRoutes from './routes/smsRoutes.js';
+
 
 const app: Application = express();
 
