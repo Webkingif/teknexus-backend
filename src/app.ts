@@ -4,12 +4,16 @@ import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { handleUSSD } from './controllers/ussdController.js';
 import { logger } from './utils/logger.js';
 import smsRoutes from './routes/smsRoutes.js';
 
-
 const app: Application = express();
+
+// Recreate __dirname for ES modules compatibility on Node.js / Vercel
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Define potential paths for public directory (Vercel serverless vs local dev)
 const publicPaths = [
@@ -35,7 +39,6 @@ app.use(express.static(publicPath));
 // Serve phone.html at /phone
 app.get('/phone', (req: Request, res: Response) => {
   const filePath = path.join(publicPath, 'phone.html');
-  
   if (fs.existsSync(filePath)) {
     res.sendFile(filePath);
   } else {

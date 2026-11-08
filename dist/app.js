@@ -4,10 +4,14 @@ import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { handleUSSD } from './controllers/ussdController.js';
 import { logger } from './utils/logger.js';
 import smsRoutes from './routes/smsRoutes.js';
 const app = express();
+// Recreate __dirname for ES modules compatibility on Node.js / Vercel
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 // Define potential paths for public directory (Vercel serverless vs local dev)
 const publicPaths = [
     path.resolve(__dirname, '../public'),
